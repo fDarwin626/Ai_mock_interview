@@ -19,7 +19,8 @@ export async function signUp(params: SignUpParams){
         }
         // if the user doesnt exist 
         await db.collection('users').doc(uid).set({
-            name, email
+            name, 
+            email
         }) // creating a new user
         return{
           success: true,
@@ -43,8 +44,8 @@ export async function signUp(params: SignUpParams){
 }
 
 
-export async function signIn(params:SignInParams) {
-  const { email, idToken} = params;
+export async function signIn(params: SignInParams) {
+  const { email, idToken } = params;
    try{
         const userRecord = await auth.getUserByEmail(email);
           if(!userRecord){
@@ -55,6 +56,11 @@ export async function signIn(params:SignInParams) {
 
           }
           await setSessionCookie(idToken);
+         return {
+          success: true,
+          message: 'Signed in successfully'
+        }
+ 
    } catch(e){
            console.log(e);
 
@@ -65,7 +71,7 @@ export async function signIn(params:SignInParams) {
    }
 }
 
-export async function setSessionCookie(idToken:string) {
+export async function setSessionCookie(idToken: string) {
    const cookieStore = await cookies();
 
    const sessionCookie = await auth.createSessionCookie(idToken, {
@@ -84,7 +90,7 @@ export async function setSessionCookie(idToken:string) {
 
 export async function getCurrentUser(): Promise<User | null>{
   const cookieStore = await cookies();
-  const sessionCookie =cookieStore.get('session')?.value; 
+  const sessionCookie = cookieStore.get('session')?.value; 
 
   if(!sessionCookie) return null;
 

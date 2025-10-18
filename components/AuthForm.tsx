@@ -12,19 +12,20 @@ import{
 import Link from "next/link"
 import { toast } from "sonner"
 import FormField from "./FormField"
-import { useRouter } from "next/dist/client/components/navigation"
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/firebase/client"
 import { signIn, signUp } from "@/lib/actions/auth.action"
-import { sign } from "crypto"
+import { useRouter } from "next/navigation"
 
 
+// ADD THIS NEW LINE:
+type FormType = 'sign-in' | 'sign-up';
 
 interface AuthFormProps{
   type: 'sign-in' | 'sign-up'
 }
 
-const authFormSchema =(type: FormType) => {
+const authFormSchema = (type: FormType) => {
  return z.object({
   name: type === 'sign-up' ? z.string().min(3)
   : z.string().optional(), // cuz we dont need after sign in
@@ -48,17 +49,17 @@ const form = useForm<z.infer<typeof formSchema>>({
 })
  
 // 2. Define a submit handler.
-async function onSubmit (values: z.infer<typeof formSchema>){
+async function onSubmit(values: z.infer<typeof formSchema>) {
   try{
     if(type === 'sign-up' ){
       const {name, email, password} = values;
       // authenaticate user
-      const userCredientials = await createUserWithEmailAndPassword(auth, email,password);
+     const userCredentials = await createUserWithEmailAndPassword(auth, email, password);
 
       // sign user up
 
       const result = await signUp({
-        uid: userCredientials.user.uid,
+        uid: userCredentials.user.uid,
         name: name!,
         email,
         password,
@@ -77,17 +78,38 @@ async function onSubmit (values: z.infer<typeof formSchema>){
         toast.error('Failed to sign in')
         return;
       }
-      await signIn({
-        email, idToken
-      })
-      toast.success(" sign in  successfully");
-       router.push('/')
+      const result = await signIn({ email, idToken })
+
+      if (result && !result.success) {
+        toast.error(result.message || "Failed to sign in")
+        return;
+      }
+
+      toast.success("Signed in successfully");
+      router.push('/')
 
     }
-  }catch (error) {
-    console.log(error);
-    toast.error(`Oops unExpected error: ${error}`)
+} catch (error: any) {
+  console.error("Auth error:", error);
+  
+  let errorMessage = "An unexpected error occurred";
+  
+  if (error.code === 'auth/email-already-in-use') {
+    errorMessage = "This email is already in use";
+  } else if (error.code === 'auth/invalid-email') {
+    errorMessage = "Invalid email address";
+  } else if (error.code === 'auth/weak-password') {
+    errorMessage = "Password is too weak";
+  } else if (error.code === 'auth/user-not-found') {
+    errorMessage = "No account found with this email";
+  } else if (error.code === 'auth/wrong-password') {
+    errorMessage = "Incorrect password";
+  } else if (error.message) {
+    errorMessage = error.message;
   }
+  
+  toast.error(errorMessage);
+}
 }
 
 const isSignIn = type === 'sign-in';
@@ -100,7 +122,7 @@ const isSignIn = type === 'sign-in';
           <Image src='/logo.svg' alt='logo' height={32}
           width={38}/>
        </div>
-       <h3>Prectice job interview with S.I.G.M.A</h3>
+       <h3>Practice job interview with S.I.G.M.A</h3>
      <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}
        className='w-full space-y-6 mt-4 form'>
@@ -117,8 +139,17 @@ const isSignIn = type === 'sign-in';
           label="Password" placeholder='Enter your password'
           type='password'/>
       
+    <Button 
+      className="btn w-full" 
+      type="submit"
+      disabled={form.formState.isSubmitting}
+    >
+      {form.formState.isSubmitting 
+        ? (isSignIn ? 'Signing in...' : 'Creating Account...') 
+        : (isSignIn ? 'Sign in' : 'Create an Account')
+      }
+    </Button>
       
-       <Button className="btn" type="submit"> {isSignIn ? 'Sign in': 'Create an Account'} </Button>
       </form>
      </Form>
       <p className="text-center">
